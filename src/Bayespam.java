@@ -3,6 +3,7 @@ import java.util.*;
 
 public class Bayespam
 {
+    /// This is a comment
     // This defines the two types of messages we have.
     static enum MessageType
     {
