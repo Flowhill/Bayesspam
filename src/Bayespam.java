@@ -86,15 +86,17 @@ public class Bayespam
 
 
     // Read the words from messages and add them to your vocabulary. The boolean type determines whether the messages are regular or not
-    private static void readMessages(MessageType type)
+    private static void readMessages(MessageType type, int nMessagesRegular, int nMessagesSpam)
             throws IOException
     {
         File[] messages = new File[0];
 
         if (type == MessageType.NORMAL){
             messages = listing_regular;
+            nMessagesRegular++;
         } else {
             messages = listing_spam;
+            nMessagesSpam++;
         }
 
         for (int i = 0; i < messages.length; ++i)
@@ -108,7 +110,7 @@ public class Bayespam
             {
                 StringTokenizer st = new StringTokenizer(line);         // parse it into words
 
-                while (st.hasMoreTokens())                  // while there are stille words left..
+                while (st.hasMoreTokens())                  // while there are still words left..
                 {
                     addWord(st.nextToken(), type);                  // add them to the vocabulary
                 }
@@ -121,6 +123,8 @@ public class Bayespam
     public static void main(String[] args)
             throws IOException
     {
+        ///Initializing the a priori variables
+        int nMessagesRegular = 0, nMessagesSpam = 0;
         // Location of the directory (the path) taken from the cmd line (first arg)
         File dir_location = new File( args[0] );
 
@@ -135,8 +139,13 @@ public class Bayespam
         listDirs(dir_location);
 
         // Read the e-mail messages
-        readMessages(MessageType.NORMAL);
-        readMessages(MessageType.SPAM);
+        readMessages(MessageType.NORMAL, nMessagesRegular, nMessagesSpam);
+        readMessages(MessageType.SPAM, nMessagesRegular, nMessagesSpam);
+
+        /// Calculate total messages and probabilities
+        int nMessagesTotal = nMessagesRegular + nMessagesSpam;
+        int P_regular = nMessagesRegular/nMessagesTotal;
+        int P_spam = nMessagesSpam/nMessagesTotal;
 
         // Print out the hash table
         printVocab();
