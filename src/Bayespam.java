@@ -68,7 +68,7 @@ public class Bayespam
 
 
     // Print the current content of the vocabulary
-    private static void printVocab()
+    private static void printVocab(int nWordsRegular, int nWordsSpam)
     {
         Multiple_Counter counter = new Multiple_Counter();
 
@@ -81,6 +81,9 @@ public class Bayespam
 
             System.out.println( word + " | in regular: " + counter.counter_regular +
                     " in spam: "    + counter.counter_spam);
+            /// Calculate the sum of counterregular and counterspam over all the words in the vocabulary
+            nWordsRegular += counter.counter_regular;
+            nWordsSpam += counter.counter_spam;
         }
     }
 
@@ -123,8 +126,12 @@ public class Bayespam
     public static void main(String[] args)
             throws IOException
     {
-        ///Initializing the a priori variables
+        /// Initializing the a priori variables
         int nMessagesRegular = 0, nMessagesSpam = 0;
+
+        /// Initializing the class conditional variables
+        int nWordsRegular = 0, nWordsSpam = 0;
+
         // Location of the directory (the path) taken from the cmd line (first arg)
         File dir_location = new File( args[0] );
 
@@ -148,7 +155,7 @@ public class Bayespam
         int P_spam = nMessagesSpam/nMessagesTotal;
 
         // Print out the hash table
-        printVocab();
+        printVocab(nWordsRegular, nWordsSpam);
 
         // Now all students must continue from here:
         //
