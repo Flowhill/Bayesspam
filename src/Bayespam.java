@@ -68,7 +68,7 @@ public class Bayespam
 
 
     // Print the current content of the vocabulary
-    private static void printVocab(int nWordsRegular, int nWordsSpam)
+    private static int[] printVocab(int[] nWords, int nWordsRegular, int nWordsSpam)
     {
         Multiple_Counter counter = new Multiple_Counter();
 
@@ -85,6 +85,10 @@ public class Bayespam
             nWordsRegular += counter.counter_regular;
             nWordsSpam += counter.counter_spam;
         }
+        nWords[1] = nWordsRegular;
+        nWords[2] = nWordsSpam;
+        return nWords;
+
     }
 
 
@@ -152,9 +156,14 @@ public class Bayespam
         float P_spam = (float)nMessagesSpam/(float)nMessagesTotal;
 
 
-        // Print out the hash table
-        printVocab(nWordsRegular, nWordsSpam);
+        // Print out the hash table /// and create an array to save the conditional variables
+        int[] nWords = new int[2];
+        printVocab(nWords, nWordsRegular, nWordsSpam);
 
+        /// Calculate the class conditional likelihoods
+
+        nWordsRegular = nWords[1];
+        nWordsSpam = nWords[2];
 
         // Now all students must continue from here:
         //
