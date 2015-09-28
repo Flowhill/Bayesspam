@@ -89,19 +89,16 @@ public class Bayespam
 
 
     // Read the words from messages and add them to your vocabulary. The boolean type determines whether the messages are regular or not
-    private static void readMessages(MessageType type, int nMessagesRegular, int nMessagesSpam)
+    private static int readMessages(MessageType type)
             throws IOException
     {
         File[] messages = new File[0];
 
         if (type == MessageType.NORMAL){
             messages = listing_regular;
-            nMessagesRegular++;
         } else {
             messages = listing_spam;
-            nMessagesSpam++;
         }
-
         for (int i = 0; i < messages.length; ++i)
         {
             FileInputStream i_s = new FileInputStream( messages[i] );
@@ -121,13 +118,13 @@ public class Bayespam
 
             in.close();
         }
+        return messages.length;
     }
 
     public static void main(String[] args)
             throws IOException
     {
-        /// Initializing the a priori variables
-        int nMessagesRegular = 0, nMessagesSpam = 0;
+
 
         /// Initializing the class conditional variables
         int nWordsRegular = 0, nWordsSpam = 0;
@@ -145,17 +142,19 @@ public class Bayespam
         // Initialize the regular and spam lists
         listDirs(dir_location);
 
-        // Read the e-mail messages
-        readMessages(MessageType.NORMAL, nMessagesRegular, nMessagesSpam);
-        readMessages(MessageType.SPAM, nMessagesRegular, nMessagesSpam);
+        // Read the e-mail messages         /// Initializing the a priori variables
+        int nMessagesRegular = readMessages(MessageType.NORMAL);
+        int nMessagesSpam = readMessages(MessageType.SPAM);
 
         /// Calculate total messages and probabilities
         int nMessagesTotal = nMessagesRegular + nMessagesSpam;
-        int P_regular = nMessagesRegular/nMessagesTotal;
-        int P_spam = nMessagesSpam/nMessagesTotal;
+        float P_regular = (float)nMessagesRegular/(float)nMessagesTotal;
+        float P_spam = (float)nMessagesSpam/(float)nMessagesTotal;
+
 
         // Print out the hash table
         printVocab(nWordsRegular, nWordsSpam);
+
 
         // Now all students must continue from here:
         //
