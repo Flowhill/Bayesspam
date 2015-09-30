@@ -40,7 +40,7 @@ public class Bayespam
     {
         Multiple_Counter counter = new Multiple_Counter();
 
-        //ignore short words:
+        ///ignore short words and punctuation:
         if ( word.length() < 4 ) return;
 
         if ( vocab.containsKey(word) ){                  // if word exists already in the vocabulary..
@@ -135,12 +135,54 @@ public class Bayespam
         return messages.length;
     }
 
+    private static int classifyMessages(MessageType type)
+            throws IOException
+    {
+        int classifiedWords = 0;
+        File[] messages = new File[0];
+
+        if (type == MessageType.NORMAL){
+            messages = listing_regular;
+        } else {
+            messages = listing_spam;
+        }
+        for (int i = 0; i < messages.length; ++i)
+        {
+            FileInputStream i_s = new FileInputStream( messages[i] );
+            BufferedReader in = new BufferedReader(new InputStreamReader(i_s));
+            String line;
+            String word;
+
+            while ((line = in.readLine()) != null)                      // read a line
+            {
+                //convert to lower case:
+                line = line.toLowerCase();
+                //eliminate unwanted characters:
+                line = line.replaceAll("[^a-z]"," ");
+
+                StringTokenizer st = new StringTokenizer(line);         // parse it into words
+
+                while (st.hasMoreTokens())                  // while there are still words left..
+                {
+                    if(vocab.containsKey(st)) {
+                        classifiedWords++;
+                    }
+                    st.nextToken();
+                }
+            }
+
+            in.close();
+        }
+
+        return classifiedWords;
+    }
+
     public static void main(String[] args)
             throws IOException
     {
 
         /// Initializing the probability variables
-        int nWordsRegular = 0, nWordsSpam = 0;
+        int nWordsRegular = 0, nWordsSpam = 0, classifiedRegular, classifiedSpam;
         double p_classRegular = 0, p_classSpam = 0;
 
         // Location of the directory (the path) taken from the cmd line (first arg)
@@ -162,13 +204,13 @@ public class Bayespam
 
         /// Calculate total messages and probabilities
         int nMessagesTotal = nMessagesRegular + nMessagesSpam;
-        double P_regular = Math.log((double)nMessagesRegular/(double)nMessagesTotal);
-        double P_spam = Math.log((double)nMessagesSpam/(double)nMessagesTotal);
+        double p_Regular = Math.log((double)nMessagesRegular/(double)nMessagesTotal);
+        double p_Spam = Math.log((double)nMessagesSpam/(double)nMessagesTotal);
 
 
         // Print out the hash table /// and create an array to save the conditional variables
-        double[] nWords = new double[4];
-        printVocab(nWords, nWordsRegular, nWordsSpam);
+        double[] nWords = new double[5];
+        nWords = printVocab(nWords, nWordsRegular, nWordsSpam);
 
         /// Calculate the class conditional likelihoods
 
@@ -177,7 +219,31 @@ public class Bayespam
         p_classRegular = Math.log(nWords[3]);
         p_classSpam = Math.log(nWords[4]);
 
+        /// Preventing probabilities from being 0
         double zeroProbAvoider = Math.log(1/(nWordsRegular+nWordsSpam));
+        if(p_Regular == 0){ p_Regular = zeroProbAvoider;}
+        if(p_Spam == 0){ p_Spam = zeroProbAvoider;}
+        if(p_classRegular == 0){ p_classRegular = zeroProbAvoider;}
+        if(p_classSpam == 0){ p_classSpam = zeroProbAvoider;}
+
+        // Location of the directory (the path) taken from the cmd line (first arg)
+        File dir_testlocation = new File( args[1] );
+
+        // Check if the cmd line arg is a directory
+        if ( !dir_testlocation.isDirectory() )
+        {
+            System.out.println( "- Error: cmd line arg 2 not a directory.\n" );
+            Runtime.getRuntime().exit(0);
+        }
+
+        // Initialize the regular and spam lists
+        listDirs(dir_testlocation);
+
+        classifiedRegular = classifyMessages(MessageType.NORMAL);
+        System.out.println(classifiedRegular);
+        System.exit(0);
+        classifyMessages(MessageType.SPAM);
+
 
 
 
