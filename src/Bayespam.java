@@ -3,7 +3,7 @@ import java.util.*;
 
 public class Bayespam
 {
-    /// This is a comment
+
     // This defines the two types of messages we have.
     static enum MessageType
     {
@@ -68,7 +68,7 @@ public class Bayespam
 
 
     // Print the current content of the vocabulary
-    private static int[] printVocab(int[] nWords, int nWordsRegular, int nWordsSpam)
+    private static double[] printVocab(double[] nWords, int nWordsRegular, int nWordsSpam)
     {
         Multiple_Counter counter = new Multiple_Counter();
 
@@ -87,6 +87,8 @@ public class Bayespam
         }
         nWords[1] = nWordsRegular;
         nWords[2] = nWordsSpam;
+        nWords[3] = counter.counter_regular/nWordsRegular;
+        nWords[4] = counter.counter_regular/nWordsSpam;
         return nWords;
 
     }
@@ -131,6 +133,7 @@ public class Bayespam
 
         /// Initializing the probability variables
         int nWordsRegular = 0, nWordsSpam = 0;
+        double p_classRegular = 0, p_classSpam = 0;
 
         // Location of the directory (the path) taken from the cmd line (first arg)
         File dir_location = new File( args[0] );
@@ -151,19 +154,22 @@ public class Bayespam
 
         /// Calculate total messages and probabilities
         int nMessagesTotal = nMessagesRegular + nMessagesSpam;
-        float P_regular = (float)nMessagesRegular/(float)nMessagesTotal;
-        float P_spam = (float)nMessagesSpam/(float)nMessagesTotal;
+        double P_regular = Math.log((double)nMessagesRegular/(double)nMessagesTotal);
+        double P_spam = Math.log((double)nMessagesSpam/(double)nMessagesTotal);
 
 
         // Print out the hash table /// and create an array to save the conditional variables
-        int[] nWords = new int[2];
+        double[] nWords = new double[4];
         printVocab(nWords, nWordsRegular, nWordsSpam);
 
         /// Calculate the class conditional likelihoods
 
-        nWordsRegular = nWords[1];
-        nWordsSpam = nWords[2];
-        int zeroProbAvoider = 1/(nWordsRegular+nWordsSpam);
+        nWordsRegular = (int)nWords[1];
+        nWordsSpam = (int)nWords[2];
+        p_classRegular = Math.log(nWords[3]);
+        p_classSpam = Math.log(nWords[4]);
+
+        double zeroProbAvoider = Math.log(1/(nWordsRegular+nWordsSpam));
 
 
 
