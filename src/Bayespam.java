@@ -129,8 +129,7 @@ public class Bayespam
             throws IOException
     {
 
-
-        /// Initializing the class conditional variables
+        /// Initializing the probability variables
         int nWordsRegular = 0, nWordsSpam = 0;
 
         // Location of the directory (the path) taken from the cmd line (first arg)
@@ -164,6 +163,9 @@ public class Bayespam
 
         nWordsRegular = nWords[1];
         nWordsSpam = nWords[2];
+        int zeroProbAvoider = 1/(nWordsRegular+nWordsSpam);
+
+
 
         // Now all students must continue from here:
         //
