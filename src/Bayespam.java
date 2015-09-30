@@ -40,6 +40,9 @@ public class Bayespam
     {
         Multiple_Counter counter = new Multiple_Counter();
 
+        //ignore short words:
+        if ( word.length() < 4 ) return;
+
         if ( vocab.containsKey(word) ){                  // if word exists already in the vocabulary..
             counter = vocab.get(word);                  // get the counter from the hashtable
         }
@@ -114,6 +117,11 @@ public class Bayespam
 
             while ((line = in.readLine()) != null)                      // read a line
             {
+                //convert to lower case:
+                line = line.toLowerCase();
+                //eliminate unwanted characters:
+                line = line.replaceAll("[^a-z]"," ");
+
                 StringTokenizer st = new StringTokenizer(line);         // parse it into words
 
                 while (st.hasMoreTokens())                  // while there are still words left..
