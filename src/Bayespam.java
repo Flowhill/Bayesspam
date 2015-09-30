@@ -25,6 +25,15 @@ public class Bayespam
                 ++counter_spam;
             }
         }
+
+        public int getRegular(){
+            return counter_regular;
+        }
+        public int getSpam(){
+            return counter_spam;
+        }
+
+
     }
 
     // Listings of the two subdirectories (regular/ and spam/)
@@ -84,7 +93,7 @@ public class Bayespam
 
             System.out.println( word + " | in regular: " + counter.counter_regular +
                     " in spam: "    + counter.counter_spam);
-            /// Calculate the sum of counterregular and counterspam over all the words in the vocabulary
+            /// Calculate the sum of counter_regular and counter_spam over all the words in the vocabulary
             nWordsRegular += counter.counter_regular;
             nWordsSpam += counter.counter_spam;
         }
@@ -117,9 +126,9 @@ public class Bayespam
 
             while ((line = in.readLine()) != null)                      // read a line
             {
-                //convert to lower case:
+                ///convert to lower case:
                 line = line.toLowerCase();
-                //eliminate unwanted characters:
+                ///eliminate unwanted characters:
                 line = line.replaceAll("[^a-z]"," ");
 
                 StringTokenizer st = new StringTokenizer(line);         // parse it into words
@@ -135,10 +144,17 @@ public class Bayespam
         return messages.length;
     }
 
-    private static int classifyMessages(MessageType type)
+    private static double classifyMessages(MessageType type, double p_Regular, double p_Spam)
             throws IOException
     {
-        int classifiedWords = 0;
+        /// Set the counter for regular and spam words in the vocabulary and their probabilities
+        int classifiedRegular = 0, classifiedSpam = 0, totalWords = 1;
+        double p_ClassRegular= p_Regular, p_ClassSpam = p_Spam;
+        /// Set the counter for whether a message is classified as regular (1) or spam (2)
+        double[] classification = new double[2];
+        classification[1] = 0;
+        classification[2] = 0;
+
         File[] messages = new File[0];
 
         if (type == MessageType.NORMAL){
@@ -155,26 +171,46 @@ public class Bayespam
 
             while ((line = in.readLine()) != null)                      // read a line
             {
-                //convert to lower case:
+                ///convert to lower case:
                 line = line.toLowerCase();
-                //eliminate unwanted characters:
+                ///eliminate unwanted characters:
                 line = line.replaceAll("[^a-z]"," ");
 
                 StringTokenizer st = new StringTokenizer(line);         // parse it into words
 
                 while (st.hasMoreTokens())                  // while there are still words left..
                 {
-                    if(vocab.containsKey(st)) {
-                        classifiedWords++;
+                    ///If the word is in the vocabulary, add 1 to either the regular or spam counter.
+                    word = st.nextToken();
+                    if(vocab.containsKey(word)) {
+                        if(vocab.get(word).counter_regular >0) {
+                            classifiedRegular++;
+                        }else{
+                            classifiedSpam++;
+                        }
                     }
-                    st.nextToken();
+                    /// Calculate the a posteri probabilities
+                    totalWords = classifiedRegular+classifiedSpam;
+                    p_ClassRegular *= classifiedRegular/totalWords;
+                    p_ClassSpam *= classifiedSpam/totalWords;
+
                 }
+            }
+            ///Compare the logprobabilities to classify
+            if(Math.log(p_ClassRegular) > Math.log(p_ClassSpam)) {
+                classification[1]++;
+            } else{
+                classification[2]++;
             }
 
             in.close();
         }
-
-        return classifiedWords;
+        ///Return the percentage of messages that are correctly classified
+        if(type == MessageType.NORMAL){
+            return classification[1]/totalWords;
+        } else {
+            return classification[2]/totalWords;
+        }
     }
 
     public static void main(String[] args)
@@ -182,8 +218,12 @@ public class Bayespam
     {
 
         /// Initializing the probability variables
-        int nWordsRegular = 0, nWordsSpam = 0, classifiedRegular, classifiedSpam;
+        int nWordsRegular = 0, nWordsSpam = 0, p_Regular_Msg, p_Spam_Msg;
         double p_classRegular = 0, p_classSpam = 0;
+        /// classification is an array that will hold the % of correctly classified words
+        double[] classification = new double[2];
+        classification[1] = 0;
+        classification[2] = 0;
 
         // Location of the directory (the path) taken from the cmd line (first arg)
         File dir_location = new File( args[0] );
@@ -239,10 +279,10 @@ public class Bayespam
         // Initialize the regular and spam lists
         listDirs(dir_testlocation);
 
-        classifiedRegular = classifyMessages(MessageType.NORMAL);
-        System.out.println(classifiedRegular);
-        System.exit(0);
-        classifyMessages(MessageType.SPAM);
+        classification[1] = classifyMessages(MessageType.NORMAL, p_Regular, p_Spam);
+        classification[2] = classifyMessages(MessageType.SPAM, p_Regular, p_Spam);
+        System.out.println("Percentage of correctly classified Regular messages = " +classification[1]+"%");
+        System.out.println("Percentage of correctly classified Spam messages = " +classification[2]+"%");
 
 
 
