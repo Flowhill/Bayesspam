@@ -25,15 +25,6 @@ public class Bayespam
                 ++counter_spam;
             }
         }
-
-        public int getRegular(){
-            return counter_regular;
-        }
-        public int getSpam(){
-            return counter_spam;
-        }
-
-
     }
 
     // Listings of the two subdirectories (regular/ and spam/)
@@ -148,8 +139,8 @@ public class Bayespam
             throws IOException
     {
         /// Set the counter for regular and spam words in the vocabulary and their probabilities
-        int classifiedRegular = 0, classifiedSpam = 0, totalWords = 1;
-        double p_ClassRegular= p_Regular, p_ClassSpam = p_Spam;
+        int classifiedRegular, classifiedSpam, totalWords = 0;
+        double p_ClassRegular= 1, p_ClassSpam = 1;
         /// Set the counter for whether a message is classified as regular (1) or spam (2)
         double[] classification = new double[2];
         classification[1] = 0;
@@ -182,21 +173,33 @@ public class Bayespam
                 {
                     ///If the word is in the vocabulary, add 1 to either the regular or spam counter.
                     word = st.nextToken();
+                    classifiedRegular = 0;
+                    classifiedSpam = 0;
                     if(vocab.containsKey(word)) {
                         if(vocab.get(word).counter_regular >0) {
                             classifiedRegular++;
                         }else{
                             classifiedSpam++;
                         }
+                        totalWords++;
                     }
-                    /// Calculate the a posteri probabilities
-                    totalWords = classifiedRegular+classifiedSpam;
-                    p_ClassRegular *= classifiedRegular/totalWords;
-                    p_ClassSpam *= classifiedSpam/totalWords;
 
+                    /// Calculate the a posteri probabilities
+                    if(classifiedRegular > 0) {
+                        p_ClassRegular *= vocab.get(word).counter_regular;
+                    } else if (classifiedSpam > 0) {
+                        p_ClassSpam *= vocab.get(word).counter_spam;
+                    }
                 }
             }
-            ///Compare the logprobabilities to classify
+            /// Divide by totalWords because P(wj|regular) = counterRegular/nWordsRegular
+            /// And similarly P(wj|spam) = counterSpam/nWordsSpam
+            p_ClassRegular /= totalWords;
+            p_ClassSpam /= totalWords;
+            p_ClassRegular *= p_Regular;
+            p_ClassSpam *= p_Spam;
+
+            /// Compare the logprobabilities to classify
             if(Math.log(p_ClassRegular) > Math.log(p_ClassSpam)) {
                 classification[1]++;
             } else{
@@ -207,9 +210,9 @@ public class Bayespam
         }
         ///Return the percentage of messages that are correctly classified
         if(type == MessageType.NORMAL){
-            return classification[1]/totalWords;
+            return classification[1]/messages.length;
         } else {
-            return classification[2]/totalWords;
+            return classification[2]/messages.length;
         }
     }
 
