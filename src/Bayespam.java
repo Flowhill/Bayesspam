@@ -143,8 +143,8 @@ public class Bayespam
         double p_ClassRegular= 1, p_ClassSpam = 1;
         /// Set the counter for whether a message is classified as regular (1) or spam (2)
         double[] classification = new double[2];
+        classification[0] = 0;
         classification[1] = 0;
-        classification[2] = 0;
 
         File[] messages = new File[0];
 
@@ -201,18 +201,18 @@ public class Bayespam
 
             /// Compare the logprobabilities to classify
             if(Math.log(p_ClassRegular) > Math.log(p_ClassSpam)) {
-                classification[1]++;
+                classification[0]++;
             } else{
-                classification[2]++;
+                classification[1]++;
             }
 
             in.close();
         }
         ///Return the percentage of messages that are correctly classified
         if(type == MessageType.NORMAL){
-            return classification[1]/messages.length;
+            return classification[0]/messages.length;
         } else {
-            return classification[2]/messages.length;
+            return classification[1]/messages.length;
         }
     }
 
@@ -225,8 +225,8 @@ public class Bayespam
         double p_classRegular = 0, p_classSpam = 0;
         /// classification is an array that will hold the % of correctly classified words
         double[] classification = new double[2];
+        classification[0] = 0;
         classification[1] = 0;
-        classification[2] = 0;
 
         // Location of the directory (the path) taken from the cmd line (first arg)
         File dir_location = new File( args[0] );
@@ -282,10 +282,10 @@ public class Bayespam
         // Initialize the regular and spam lists
         listDirs(dir_testlocation);
 
-        classification[1] = classifyMessages(MessageType.NORMAL, p_Regular, p_Spam);
-        classification[2] = classifyMessages(MessageType.SPAM, p_Regular, p_Spam);
-        System.out.println("Percentage of correctly classified Regular messages = " +classification[1]+"%");
-        System.out.println("Percentage of correctly classified Spam messages = " +classification[2]+"%");
+        classification[0] = classifyMessages(MessageType.NORMAL, p_Regular, p_Spam);
+        classification[1] = classifyMessages(MessageType.SPAM, p_Regular, p_Spam);
+        System.out.println("Percentage of correctly classified Regular messages = " +classification[0]+"%");
+        System.out.println("Percentage of correctly classified Spam messages = " +classification[1]+"%");
 
 
 
