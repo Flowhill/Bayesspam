@@ -1,20 +1,24 @@
+import com.sun.org.apache.xalan.internal.xsltc.runtime.*;
+
 import java.io.*;
 import java.util.*;
+import java.util.Hashtable;
 
 public class Bayespam
 {
-
     // This defines the two types of messages we have.
-    static enum MessageType
+    enum MessageType
     {
         NORMAL, SPAM
     }
 
     // This a class with two counters (for regular and for spam)
-    static class Multiple_Counter
+    static class Word_Stats
     {
         int counter_spam    = 0;
         int counter_regular = 0;
+        double likelihood_spam    = 0;
+        double likelihood_regular = 0;
 
         // Increase one of the counters by one
         public void incrementCounter(MessageType type)
@@ -27,23 +31,20 @@ public class Bayespam
         }
     }
 
+
     // Listings of the two subdirectories (regular/ and spam/)
     private static File[] listing_regular = new File[0];
     private static File[] listing_spam = new File[0];
 
     // A hash table for the vocabulary (word searching is very fast in a hash table)
-    private static Hashtable <String, Multiple_Counter> vocab = new Hashtable <String, Multiple_Counter> ();
-
+    private static Hashtable <String, Word_Stats> vocab = new Hashtable <> ();
 
     // Add a word to the vocabulary
     private static void addWord(String word, MessageType type)
     {
-        Multiple_Counter counter = new Multiple_Counter();
+        Word_Stats counter = new Word_Stats();
 
-        ///ignore short words and punctuation:
-        if ( word.length() < 4 ) return;
-
-        if ( vocab.containsKey(word) ){                  // if word exists already in the vocabulary..
+        if ( vocab.containsKey(word) ){                 // if word exists already in the vocabulary..
             counter = vocab.get(word);                  // get the counter from the hashtable
         }
         counter.incrementCounter(type);                 // increase the counter appropriately
@@ -59,6 +60,7 @@ public class Bayespam
         File[] dir_listing = dir_location.listFiles();
 
         // Check that there are 2 subdirectories
+        assert dir_listing != null;
         if ( dir_listing.length != 2 )
         {
             System.out.println( "- Error: specified directory does not contain two subdirectories.\n" );
@@ -71,9 +73,9 @@ public class Bayespam
 
 
     // Print the current content of the vocabulary
-    private static double[] printVocab(double[] nWords, int nWordsRegular, int nWordsSpam)
+    private static void printVocab()
     {
-        Multiple_Counter counter = new Multiple_Counter();
+        Word_Stats counter;
 
         for (Enumeration<String> e = vocab.keys() ; e.hasMoreElements() ;)
         {
@@ -84,150 +86,50 @@ public class Bayespam
 
             System.out.println( word + " | in regular: " + counter.counter_regular +
                     " in spam: "    + counter.counter_spam);
-            /// Calculate the sum of counter_regular and counter_spam over all the words in the vocabulary
-            nWordsRegular += counter.counter_regular;
-            nWordsSpam += counter.counter_spam;
         }
-        nWords[1] = nWordsRegular;
-        nWords[2] = nWordsSpam;
-        nWords[3] = counter.counter_regular/nWordsRegular;
-        nWords[4] = counter.counter_regular/nWordsSpam;
-        return nWords;
-
     }
 
 
     // Read the words from messages and add them to your vocabulary. The boolean type determines whether the messages are regular or not
-    private static int readMessages(MessageType type)
+    private static void readMessages(MessageType type)
             throws IOException
     {
-        File[] messages = new File[0];
+        File[] messages;
 
         if (type == MessageType.NORMAL){
             messages = listing_regular;
         } else {
             messages = listing_spam;
         }
-        for (int i = 0; i < messages.length; ++i)
-        {
-            FileInputStream i_s = new FileInputStream( messages[i] );
+
+        for (File message : messages) {
+            FileInputStream i_s = new FileInputStream(message);
             BufferedReader in = new BufferedReader(new InputStreamReader(i_s));
             String line;
             String word;
 
             while ((line = in.readLine()) != null)                      // read a line
             {
-                ///convert to lower case:
-                line = line.toLowerCase();
-                ///eliminate unwanted characters:
-                line = line.replaceAll("[^a-z]"," ");
+                line = line.toLowerCase();                              ///convert to lower case
+
+                line = line.replaceAll("[^a-z]", " ");                   ///eliminate unwanted characters
 
                 StringTokenizer st = new StringTokenizer(line);         // parse it into words
 
                 while (st.hasMoreTokens())                  // while there are still words left..
                 {
-                    addWord(st.nextToken(), type);                  // add them to the vocabulary
-                }
-            }
-
-            in.close();
-        }
-        return messages.length;
-    }
-
-    private static double classifyMessages(MessageType type, double p_Regular, double p_Spam)
-            throws IOException
-    {
-        /// Set the counter for regular and spam words in the vocabulary and their probabilities
-        int classifiedRegular, classifiedSpam, totalWords = 0;
-        double p_ClassRegular= 1, p_ClassSpam = 1;
-        /// Set the counter for whether a message is classified as regular (1) or spam (2)
-        double[] classification = new double[2];
-        classification[0] = 0;
-        classification[1] = 0;
-
-        File[] messages = new File[0];
-
-        if (type == MessageType.NORMAL){
-            messages = listing_regular;
-        } else {
-            messages = listing_spam;
-        }
-        for (int i = 0; i < messages.length; ++i)
-        {
-            FileInputStream i_s = new FileInputStream( messages[i] );
-            BufferedReader in = new BufferedReader(new InputStreamReader(i_s));
-            String line;
-            String word;
-
-            while ((line = in.readLine()) != null)                      // read a line
-            {
-                ///convert to lower case:
-                line = line.toLowerCase();
-                ///eliminate unwanted characters:
-                line = line.replaceAll("[^a-z]"," ");
-
-                StringTokenizer st = new StringTokenizer(line);         // parse it into words
-
-                while (st.hasMoreTokens())                  // while there are still words left..
-                {
-                    ///If the word is in the vocabulary, add 1 to either the regular or spam counter.
                     word = st.nextToken();
-                    classifiedRegular = 0;
-                    classifiedSpam = 0;
-                    if(vocab.containsKey(word)) {
-                        if(vocab.get(word).counter_regular >0) {
-                            classifiedRegular++;
-                        }else{
-                            classifiedSpam++;
-                        }
-                        totalWords++;
-                    }
-
-                    /// Calculate the a posteri probabilities
-                    if(classifiedRegular > 0) {
-                        p_ClassRegular *= vocab.get(word).counter_regular;
-                    } else if (classifiedSpam > 0) {
-                        p_ClassSpam *= vocab.get(word).counter_spam;
-                    }
+                    if (word.length() >= 4) addWord(word, type);       ///only add long enough words
                 }
-            }
-            /// Divide by totalWords because P(wj|regular) = counterRegular/nWordsRegular
-            /// And similarly P(wj|spam) = counterSpam/nWordsSpam
-            p_ClassRegular /= totalWords;
-            p_ClassSpam /= totalWords;
-            p_ClassRegular *= p_Regular;
-            p_ClassSpam *= p_Spam;
-
-            /// Compare the logprobabilities to classify
-            if(Math.log(p_ClassRegular) > Math.log(p_ClassSpam)) {
-                classification[0]++;
-            } else{
-                classification[1]++;
             }
 
             in.close();
-        }
-        ///Return the percentage of messages that are correctly classified
-        if(type == MessageType.NORMAL){
-            return classification[0]/messages.length;
-        } else {
-            return classification[1]/messages.length;
         }
     }
 
     public static void main(String[] args)
             throws IOException
     {
-
-        /// Initializing the probability variables
-        int nWordsRegular = 0, nWordsSpam = 0, p_Regular_Msg, p_Spam_Msg;
-        double p_classRegular = 0, p_classSpam = 0;
-        /// classification is an array that will hold the % of correctly classified words
-        double[] classification = new double[2];
-        classification[0] = 0;
-        classification[1] = 0;
-
         // Location of the directory (the path) taken from the cmd line (first arg)
         File dir_location = new File( args[0] );
 
@@ -241,64 +143,123 @@ public class Bayespam
         // Initialize the regular and spam lists
         listDirs(dir_location);
 
-        // Read the e-mail messages         /// Initializing the a priori variables
-        int nMessagesRegular = readMessages(MessageType.NORMAL);
-        int nMessagesSpam = readMessages(MessageType.SPAM);
+        // Read the e-mail messages
+        readMessages(MessageType.NORMAL);
+        readMessages(MessageType.SPAM);
 
-        /// Calculate total messages and probabilities
-        int nMessagesTotal = nMessagesRegular + nMessagesSpam;
-        double p_Regular = Math.log((double)nMessagesRegular/(double)nMessagesTotal);
-        double p_Spam = Math.log((double)nMessagesSpam/(double)nMessagesTotal);
-
-
-        // Print out the hash table /// and create an array to save the conditional variables
-        double[] nWords = new double[5];
-        nWords = printVocab(nWords, nWordsRegular, nWordsSpam);
-
-        /// Calculate the class conditional likelihoods
-
-        nWordsRegular = (int)nWords[1];
-        nWordsSpam = (int)nWords[2];
-        p_classRegular = Math.log(nWords[3]);
-        p_classSpam = Math.log(nWords[4]);
-
-        /// Preventing probabilities from being 0
-        double zeroProbAvoider = Math.log(1/(nWordsRegular+nWordsSpam));
-        if(p_Regular == 0){ p_Regular = zeroProbAvoider;}
-        if(p_Spam == 0){ p_Spam = zeroProbAvoider;}
-        if(p_classRegular == 0){ p_classRegular = zeroProbAvoider;}
-        if(p_classSpam == 0){ p_classSpam = zeroProbAvoider;}
-
-        // Location of the directory (the path) taken from the cmd line (first arg)
-        File dir_testlocation = new File( args[1] );
-
-        // Check if the cmd line arg is a directory
-        if ( !dir_testlocation.isDirectory() )
-        {
-            System.out.println( "- Error: cmd line arg 2 not a directory.\n" );
-            Runtime.getRuntime().exit(0);
-        }
-
-        // Initialize the regular and spam lists
-        listDirs(dir_testlocation);
-
-        classification[0] = classifyMessages(MessageType.NORMAL, p_Regular, p_Spam);
-        classification[1] = classifyMessages(MessageType.SPAM, p_Regular, p_Spam);
-        System.out.println("Percentage of correctly classified Regular messages = " +classification[0]+"%");
-        System.out.println("Percentage of correctly classified Spam messages = " +classification[1]+"%");
-
-
-
+        // Print out the hash table
+        printVocab();
 
         // Now all students must continue from here:
         //
         // 1) A priori class probabilities must be computed from the number of regular and spam messages
+
+        ///Computing a priori class log probabilities:
+        int nMessagesRegular = listing_regular.length;
+        int nMessagesSpam = listing_spam.length;
+        double lognTotal = Math.log( 2 + nMessagesRegular + nMessagesSpam);
+        double Prior_Regular = Math.log( 1 + nMessagesRegular) - lognTotal;
+        double Prior_Spam = Math.log( 1 + nMessagesSpam) - lognTotal;
+
         // 2) The vocabulary must be clean: punctuation and digits must be removed, case insensitive
+
+        /// Removal of unwanted characters and case insensitivity are in function 'readMessages'.
+        /// Short words are ignored in function 'addWord'.
+
+
         // 3) Conditional probabilities must be computed for every word
+        double tuningParameter = 1;
+
+        ///Counting total number of words in regular/spam:
+        int nWordsRegular, nWordsSpam;        nWordsRegular = nWordsSpam = 0;
+        for (Enumeration<String> e = vocab.keys() ; e.hasMoreElements() ;)
+        {
+            String word = e.nextElement();
+            nWordsRegular += vocab.get(word).counter_regular;
+            nWordsSpam += vocab.get(word).counter_spam;
+        }
+        double smallValue = tuningParameter / (nWordsRegular + nWordsSpam);
+
+        int counterRegular, counterSpam;
+        Word_Stats x;
+        for (Enumeration<String> e = vocab.keys() ; e.hasMoreElements() ;)
+        {
+            String word = e.nextElement();
+            x = vocab.get(word);
+
+            ///Computing class conditional word likelihoods:
+
+            x.likelihood_regular = Math.log( smallValue + (double)x.counter_regular / (double)(1 + nWordsRegular) ) ;
+            x.likelihood_spam = Math.log( smallValue + (double)x.counter_spam / (double)(1 + nWordsSpam) ) ;
+            vocab.put( word, x);
+
+        }
+
+
         // 4) A priori probabilities must be computed for every word
+
+
+
+
         // 5) Zero probabilities must be replaced by a small estimated value
+
+        // This is not necessary since we computed the probabilities correctly
+        // which never gives us zero probabilities in the first place.
+        // The 'tuningParameter' can be adjusted as well.
+
+
         // 6) Bayes rule must be applied on new messages, followed by argmax classification
+
+        Word_Stats counter = new Word_Stats();
+        for (MessageType type : MessageType.values())
+        {
+            File[] messages; if (type == MessageType.NORMAL)
+            {messages = listing_regular;} else {messages = listing_spam;}
+
+            for (File message : messages) {
+                FileInputStream i_s = new FileInputStream(message);
+                BufferedReader in = new BufferedReader(new InputStreamReader(i_s));
+                String line, word;
+
+                double Bayes_Factor = Prior_Regular - Prior_Spam;           ///initializing the Bayes factor
+
+                while ((line = in.readLine()) != null)                      // read a line
+                {
+                    line = line.toLowerCase();                              ///convert to lower case
+                    line = line.replaceAll("[^a-z]", " ");                  ///eliminate unwanted characters
+                    StringTokenizer st = new StringTokenizer(line);         // parse it into words
+                    while (st.hasMoreTokens()) {
+                        word = st.nextToken();
+                        if (word.length() >= 4) {
+                            x = vocab.get(word);
+                            Bayes_Factor += x.likelihood_regular - x.likelihood_spam;    ///updating with Bayes rule
+                        }
+                    }
+
+                }
+
+                ///Classification Counter:
+                if (Bayes_Factor >= 0)
+                    counter.incrementCounter(MessageType.NORMAL);
+                else
+                    counter.incrementCounter(MessageType.SPAM);
+                in.close();
+            }
+
+            ///Return the percentage of messages that are correctly classified
+            if(type == MessageType.NORMAL){
+                System.out.println("Ratio of correctly classified Regular messages = "
+                        +100*counter.counter_regular/messages.length+"%");
+            } else {
+                System.out.println("Ratio of correctly classified Spam messages = "
+                        +100*counter.counter_spam/messages.length+"%");
+            }
+        }
+
         // 7) Errors must be computed on the test set (FAR = false accept rate (misses), FRR = false reject rate (false alarms))
+
+
+
         // 8) Improve the code and the performance (speed, accuracy)
         //
         // Use the same steps to create a class BigramBayespam which implements a classifier using a vocabulary consisting of bigrams
