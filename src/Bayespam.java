@@ -1,5 +1,3 @@
-import com.sun.org.apache.xalan.internal.xsltc.runtime.*;
-
 import java.io.*;
 import java.util.*;
 import java.util.Hashtable;
@@ -154,114 +152,116 @@ public class Bayespam {
         /// Removal of unwanted characters and case insensitivity are in function 'readMessages'.
         /// Short words are ignored in function 'addWord'.
 
+        for (int k = -4 ; k <= 4 ; k+=2) //iterate over different tuning parameters
+        {
+            // 3) Conditional probabilities must be computed for every word
+            double tuningParameter = Math.exp(k);
 
-        // 3) Conditional probabilities must be computed for every word
-        double tuningParameter = 0.001;
+            ///Counting total number of words in regular/spam:
+            int nWordsRegular, nWordsSpam;
+            nWordsRegular = nWordsSpam = 0;
+            for (Enumeration<String> e = vocab.keys(); e.hasMoreElements(); ) {
+                String word = e.nextElement();
+                nWordsRegular += vocab.get(word).counter_regular;
+                nWordsSpam += vocab.get(word).counter_spam;
+            }
+            double smallValue = tuningParameter / (nWordsRegular + nWordsSpam);
 
-        ///Counting total number of words in regular/spam:
-        int nWordsRegular, nWordsSpam;
-        nWordsRegular = nWordsSpam = 0;
-        for (Enumeration<String> e = vocab.keys(); e.hasMoreElements(); ) {
-            String word = e.nextElement();
-            nWordsRegular += vocab.get(word).counter_regular;
-            nWordsSpam += vocab.get(word).counter_spam;
-        }
-        double smallValue = tuningParameter / (nWordsRegular + nWordsSpam);
+            int counterRegular, counterSpam;
+            Word_Stats x;
+            for (Enumeration<String> e = vocab.keys(); e.hasMoreElements(); ) {
+                String word = e.nextElement();
+                x = vocab.get(word);
 
-        int counterRegular, counterSpam;
-        Word_Stats x;
-        for (Enumeration<String> e = vocab.keys(); e.hasMoreElements(); ) {
-            String word = e.nextElement();
-            x = vocab.get(word);
+                ///Computing class conditional word likelihoods:
 
-            ///Computing class conditional word likelihoods:
+                x.likelihood_regular = Math.log(smallValue + (double) x.counter_regular / (double) (1 + nWordsRegular));
+                x.likelihood_spam = Math.log(smallValue + (double) x.counter_spam / (double) (1 + nWordsSpam));
+                vocab.put(word, x);
 
-            x.likelihood_regular = Math.log(smallValue + (double) x.counter_regular / (double) (1 + nWordsRegular));
-            x.likelihood_spam = Math.log(smallValue + (double) x.counter_spam / (double) (1 + nWordsSpam));
-            vocab.put(word, x);
-
-        }
-
-
-        // 4) A priori probabilities must be computed for every word
-
-
-        // 5) Zero probabilities must be replaced by a small estimated value
-
-        // This is not necessary since we computed the probabilities correctly
-        // which never gives us zero probabilities in the first place.
-        // The 'tuningParameter' can be adjusted as well.
-
-
-        // 6) Bayes rule must be applied on new messages, followed by argmax classification
-
-        // Location of the directory (the path) taken from the cmd line (second arg)
-        dir_location = new File(args[1]);
-        // Check if the cmd line arg is a directory
-        if (!dir_location.isDirectory()) {
-            System.out.println("- Error: second cmd line arg not a directory.\n");
-            Runtime.getRuntime().exit(0);
-        }
-        // Initialize the regular and spam lists
-        listDirs(dir_location);
-
-
-        Word_Stats counter = new Word_Stats();
-        int CA, FA, CR, FR;
-        CA =FA =CR =FR = 0;
-
-        for (MessageType type : MessageType.values()) {
-            File[] messages;
-            if (type == MessageType.NORMAL) {
-                messages = listing_regular;
-            } else {
-                messages = listing_spam;
             }
 
-            for (File message : messages) {
-                FileInputStream i_s = new FileInputStream(message);
-                BufferedReader in = new BufferedReader(new InputStreamReader(i_s));
-                String line, word;
 
-                double Bayes_Factor = Prior_Regular - Prior_Spam;           ///initializing the Bayes factor
+            // 4) A priori probabilities must be computed for every word
 
-                while ((line = in.readLine()) != null)                      // read a line
-                {
-                    line = line.toLowerCase();                              ///convert to lower case
-                    line = line.replaceAll("[^a-z]", " ");                  ///eliminate unwanted characters
-                    StringTokenizer st = new StringTokenizer(line);         // parse it into words
-                    while (st.hasMoreTokens()) {
-                        word = st.nextToken();
-                        if (word.length() >= 4 & null != (x = vocab.get(word)))
-                            Bayes_Factor += x.likelihood_regular - x.likelihood_spam; ///updating with Bayes rule
-                    }
 
+            // 5) Zero probabilities must be replaced by a small estimated value
+
+            // This is not necessary since we computed the probabilities correctly
+            // which never gives us zero probabilities in the first place.
+            // The 'tuningParameter' can be adjusted as well.
+
+
+            // 6) Bayes rule must be applied on new messages, followed by argmax classification
+
+            // Location of the directory (the path) taken from the cmd line (second arg)
+            dir_location = new File(args[1]);
+            // Check if the cmd line arg is a directory
+            if (!dir_location.isDirectory()) {
+                System.out.println("- Error: second cmd line arg not a directory.\n");
+                Runtime.getRuntime().exit(0);
+            }
+            // Initialize the regular and spam lists
+            listDirs(dir_location);
+
+
+            Word_Stats counter = new Word_Stats();
+            int CA, FA, CR, FR;
+            CA = FA = CR = FR = 0;
+
+            for (MessageType type : MessageType.values()) {
+                File[] messages;
+                if (type == MessageType.NORMAL) {
+                    messages = listing_regular;
+                } else {
+                    messages = listing_spam;
                 }
 
-                ///Classification Counter:
-                if (Bayes_Factor >= 0)
-                    counter.incrementCounter(MessageType.NORMAL);
-                else
-                    counter.incrementCounter(MessageType.SPAM);
-                in.close();
+                for (File message : messages) {
+                    FileInputStream i_s = new FileInputStream(message);
+                    BufferedReader in = new BufferedReader(new InputStreamReader(i_s));
+                    String line, word;
+
+                    double Bayes_Factor = Prior_Regular - Prior_Spam;           ///initializing the Bayes factor
+
+                    while ((line = in.readLine()) != null)                      // read a line
+                    {
+                        line = line.toLowerCase();                              ///convert to lower case
+                        line = line.replaceAll("[^a-z]", " ");                  ///eliminate unwanted characters
+                        StringTokenizer st = new StringTokenizer(line);         // parse it into words
+                        while (st.hasMoreTokens()) {
+                            word = st.nextToken();
+                            if (word.length() >= 4 & null != (x = vocab.get(word)))
+                                Bayes_Factor += x.likelihood_regular - x.likelihood_spam; ///updating with Bayes rule
+                        }
+
+                    }
+
+                    ///Classification Counter:
+                    if (Bayes_Factor >= 0)
+                        counter.incrementCounter(MessageType.NORMAL);
+                    else
+                        counter.incrementCounter(MessageType.SPAM);
+                    in.close();
+                }
+
+                if (type == MessageType.NORMAL) {
+                    CA = counter.counter_regular;   ///# of correct accepts
+                    FR = counter.counter_spam;      ///# of false rejects
+                } else {
+                    CR = counter.counter_spam;      ///# of correct rejects
+                    FA = counter.counter_regular;   ///# of false accepts
+                }
             }
 
-            if (type == MessageType.NORMAL) {
-                CA = counter.counter_regular;   ///# of correct accepts
-                FR = counter.counter_spam;      ///# of false rejects
-            } else {
-                CR = counter.counter_spam;      ///# of correct rejects
-                FA = counter.counter_regular;   ///# of false accepts
-            }
+            // 7) Errors must be computed on the test set (FAR = false accept rate (misses), FRR = false reject rate (false alarms))
+            System.out.println("Tuning parameter = e^" + k);
+            System.out.println("FAR = " + 100 * FA / (CR + FA) + "%");
+            System.out.println("FRR = " + 100 * FR / (CA + FR) + "%");
+
+            // 8) Improve the code and the performance (speed, accuracy)
+            //
+            // Use the same steps to create a class BigramBayespam which implements a classifier using a vocabulary consisting of bigrams
         }
-
-        // 7) Errors must be computed on the test set (FAR = false accept rate (misses), FRR = false reject rate (false alarms))
-
-        System.out.println("FAR = " + 100 * FA / ( CR + FA ) + "%");
-        System.out.println("FRR = " + 100 * FR / ( CA + FR ) + "%");
-
-        // 8) Improve the code and the performance (speed, accuracy)
-        //
-        // Use the same steps to create a class BigramBayespam which implements a classifier using a vocabulary consisting of bigrams
     }
 }
